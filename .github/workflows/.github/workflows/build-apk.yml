@@ -1,15 +1,10 @@
 name: Build SonyStyle Equalizer APK
 
-on:
-  workflow_dispatch:
-  push:
-    branches:
-      - main
+'on': [push, workflow_dispatch]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
