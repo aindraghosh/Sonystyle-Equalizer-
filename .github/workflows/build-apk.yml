@@ -44,8 +44,7 @@ jobs:
 
           public class EqualizerGrooveView extends View {
               private final Paint paint = new Paint(3);
-              private int level = 10;
-              private boolean horizontal;
+              private int level = 0;
 
               public EqualizerGrooveView(Context c, AttributeSet a) {
                   super(c, a);
@@ -54,17 +53,34 @@ jobs:
               @Override
               protected void onDraw(Canvas c) {
                   super.onDraw(c);
-                  horizontal = getWidth() > getHeight();
-                  float w = getWidth(), h = getHeight();
+
+                  float w = getWidth();
+                  float h = getHeight();
+                  boolean horizontal = w > h;
+
+                  paint.setStrokeWidth(3);
+
                   for (int i = 0; i < 20; i++) {
-                      paint.setColor(i < level ? 0xff168cff : 0xff777777);
+                      paint.setColor(0xff999999);
+
                       if (horizontal) {
                           float x = (i + 0.5f) * w / 20;
-                          c.drawRoundRect(x - 5, h/2 - 2, x + 5, h/2 + 2, 2, 2, paint);
+                          c.drawLine(x - 4, h / 2, x + 4, h / 2, paint);
                       } else {
-                          float y = h - (i + 0.5f) * h / 20;
-                          c.drawRoundRect(w/2 - 5, y - 2, w/2 + 5, y + 2, 2, 2, paint);
+                          float y = (i + 0.5f) * h / 20;
+                          c.drawLine(w / 2 - 4, y, w / 2 + 4, y, paint);
                       }
+                  }
+
+                  paint.setColor(0xffb49a55);
+                  paint.setStrokeWidth(5);
+
+                  if (horizontal) {
+                      float x = (level + 10) * w / 20;
+                      c.drawLine(x, h / 2 - 9, x, h / 2 + 9, paint);
+                  } else {
+                      float y = (10 - level) * h / 20;
+                      c.drawLine(w / 2 - 12, y, w / 2 + 12, y, paint);
                   }
               }
 
@@ -73,10 +89,14 @@ jobs:
                   if (e.getAction() == MotionEvent.ACTION_DOWN ||
                       e.getAction() == MotionEvent.ACTION_MOVE ||
                       e.getAction() == MotionEvent.ACTION_UP) {
-                      float p = getWidth() > getHeight()
-                          ? e.getX() / getWidth()
-                          : 1f - e.getY() / getHeight();
-                      level = Math.max(0, Math.min(20, (int)(p * 20)));
+
+                      if (getWidth() > getHeight()) {
+                          level = Math.round(e.getX() * 20 / getWidth()) - 10;
+                      } else {
+                          level = 10 - Math.round(e.getY() * 20 / getHeight());
+                      }
+
+                      level = Math.max(-10, Math.min(10, level));
                       invalidate();
                       return true;
                   }
