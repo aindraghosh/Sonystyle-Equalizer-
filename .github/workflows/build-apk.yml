@@ -29,7 +29,10 @@ jobs:
           ROOT=$(find /tmp/project -name settings.gradle -printf '%h\n' | head -n 1)
           test -n "$ROOT"
           cp -a "$ROOT"/. .
-
+      - name: Inspect project structure
+        run: |
+          find app/src/main -maxdepth 5 -type d
+          grep -R "^[[:space:]]*package " app/src/main/java || true
       - name: Build APK
         run: gradle assembleDebug
 
