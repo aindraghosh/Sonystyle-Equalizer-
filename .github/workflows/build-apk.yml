@@ -84,7 +84,7 @@ jobs:
               }
           }
           EOF
-            - name: Build APK
+      - name: Build APK
         run: gradle assembleDebug
         
       - name: Upload APK
