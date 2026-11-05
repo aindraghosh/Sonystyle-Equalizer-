@@ -30,6 +30,12 @@ jobs:
           test -n "$ROOT"
           cp -a "$ROOT"/. .
 
+      - name: Inspect project structure
+        run: |
+          echo "Java source folders:"
+          find app/src/main -maxdepth 5 -type d
+          echo "Package declarations:"
+          grep -R "^[[:space:]]*package " app/src/main/java || true
       - name: Build APK
         run: gradle assembleDebug
 
