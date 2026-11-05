@@ -29,12 +29,61 @@ jobs:
           ROOT=$(find /tmp/project -name settings.gradle -printf '%h\n' | head -n 1)
           test -n "$ROOT"
           cp -a "$ROOT"/. .
-      - name: Inspect project structure
+      - name: Add Sony groove control
         run: |
-          find app/src/main -maxdepth 5 -type d
-          grep -R "^[[:space:]]*package " app/src/main/java || true
-      - name: Build APK
-        run: gradle assembleDebug
+          mkdir -p app/src/main/java/com/sonyericsson/music
+          cat > app/src/main/java/com/sonyericsson/music/EqualizerGrooveView.java <<'EOF'
+          package com.sonyericsson.music;
+
+          import android.content.Context;
+          import android.graphics.Canvas;
+          import android.graphics.Paint;
+          import android.util.AttributeSet;
+          import android.view.MotionEvent;
+          import android.view.View;
+
+          public class EqualizerGrooveView extends View {
+              private final Paint paint = new Paint(3);
+              private int level = 10;
+              private boolean horizontal;
+
+              public EqualizerGrooveView(Context c, AttributeSet a) {
+                  super(c, a);
+              }
+
+              @Override
+              protected void onDraw(Canvas c) {
+                  super.onDraw(c);
+                  horizontal = getWidth() > getHeight();
+                  float w = getWidth(), h = getHeight();
+                  for (int i = 0; i < 20; i++) {
+                      paint.setColor(i < level ? 0xff168cff : 0xff777777);
+                      if (horizontal) {
+                          float x = (i + 0.5f) * w / 20;
+                          c.drawRoundRect(x - 5, h/2 - 2, x + 5, h/2 + 2, 2, 2, paint);
+                      } else {
+                          float y = h - (i + 0.5f) * h / 20;
+                          c.drawRoundRect(w/2 - 5, y - 2, w/2 + 5, y + 2, 2, 2, paint);
+                      }
+                  }
+              }
+
+              @Override
+              public boolean onTouchEvent(MotionEvent e) {
+                  if (e.getAction() == MotionEvent.ACTION_DOWN ||
+                      e.getAction() == MotionEvent.ACTION_MOVE ||
+                      e.getAction() == MotionEvent.ACTION_UP) {
+                      float p = getWidth() > getHeight()
+                          ? e.getX() / getWidth()
+                          : 1f - e.getY() / getHeight();
+                      level = Math.max(0, Math.min(20, (int)(p * 20)));
+                      invalidate();
+                      return true;
+                  }
+                  return true;
+              }
+          }
+          EOF
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
