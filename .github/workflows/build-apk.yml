@@ -35,28 +35,53 @@ jobs:
       - name: Add Sony groove control
         run: |
           mkdir -p app/src/main/java/com/sonyericsson/music
+
           cat > app/src/main/java/com/sonyericsson/music/EqualizerGrooveView.java <<'EOF'
           package com.sonyericsson.music;
 
           import android.content.Context;
           import android.graphics.Canvas;
           import android.graphics.Paint;
-          import android.graphics.Typeface;
+          import android.graphics.RectF;
+          import android.graphics.BlurMaskFilter;
           import android.util.AttributeSet;
           import android.view.MotionEvent;
           import android.view.View;
 
           public class EqualizerGrooveView extends View {
 
-              private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+              private final Paint paint =
+                      new Paint(Paint.ANTI_ALIAS_FLAG);
+
               private int level = 0;
 
-              private static final int BLUE = 0xff168cff;
-              private static final int GREY = 0xff999999;
-              private static final int GOLD = 0xffb49a55;
+              private final int purple = 0xffa020f0;
+              private final int brightPurple = 0xffd18aff;
+              private final int grey = 0xff686868;
+              private final int track = 0xff080808;
+              private final int handle = 0xff383838;
 
-              public EqualizerGrooveView(Context c, AttributeSet a) {
-                  super(c, a);
+              private float density;
+
+              public EqualizerGrooveView(
+                      Context context, AttributeSet attrs) {
+                  super(context, attrs);
+                  init();
+              }
+
+              public EqualizerGrooveView(Context context) {
+                  super(context);
+                  init();
+              }
+
+              private void init() {
+                  density = getResources()
+                          .getDisplayMetrics().density;
+                  setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+              }
+
+              private float dp(float value) {
+                  return value * density;
               }
 
               public void setLevel(int value) {
@@ -68,96 +93,203 @@ jobs:
                   return level;
               }
 
+              private void drawGlowLine(
+                      Canvas canvas,
+                      float x1, float y1,
+                      float x2, float y2) {
+
+                  paint.setColor(purple);
+                  paint.setStrokeWidth(dp(7));
+                  paint.setStrokeCap(Paint.Cap.BUTT);
+                  paint.setMaskFilter(
+                          new BlurMaskFilter(
+                                  dp(5), BlurMaskFilter.Blur.NORMAL));
+                  canvas.drawLine(x1, y1, x2, y2, paint);
+
+                  paint.setMaskFilter(null);
+                  paint.setColor(brightPurple);
+                  paint.setStrokeWidth(dp(4));
+                  canvas.drawLine(x1, y1, x2, y2, paint);
+
+                  paint.setColor(0xffffffff);
+                  paint.setStrokeWidth(dp(1));
+                  canvas.drawLine(x1, y1, x2, y2, paint);
+              }
+
+              private void drawHandle(
+                      Canvas canvas,
+                      float cx, float cy,
+                      boolean horizontal) {
+
+                  float hw = horizontal ? dp(25) : dp(27);
+                  float hh = horizontal ? dp(27) : dp(25);
+
+                  RectF r = new RectF(
+                          cx - hw, cy - hh,
+                          cx + hw, cy + hh);
+
+                  paint.setMaskFilter(null);
+                  paint.setColor(0x99000000);
+                  canvas.drawRoundRect(
+                          new RectF(r.left, r.top + dp(3),
+                                  r.right, r.bottom + dp(3)),
+                          dp(5), dp(5), paint);
+
+                  paint.setColor(handle);
+                  canvas.drawRoundRect(r, dp(5), dp(5), paint);
+
+                  paint.setStyle(Paint.Style.STROKE);
+                  paint.setStrokeWidth(dp(1));
+                  paint.setColor(0xff777777);
+                  canvas.drawRoundRect(r, dp(5), dp(5), paint);
+                  paint.setStyle(Paint.Style.FILL);
+
+                  if (horizontal) {
+                      drawGlowLine(canvas,
+                              cx - dp(13), cy,
+                              cx + dp(13), cy);
+                  } else {
+                      drawGlowLine(canvas,
+                              cx, cy - dp(13),
+                              cx, cy + dp(13));
+                  }
+              }
+
               @Override
               protected void onDraw(Canvas canvas) {
                   super.onDraw(canvas);
 
                   float w = getWidth();
                   float h = getHeight();
+
                   boolean horizontal = w > h;
 
                   float center = horizontal ? w / 2f : h / 2f;
-                  float spacing = horizontal ? w / 20f : h / 20f;
+                  float range = (horizontal ? w : h) * 0.40f;
+                  float step = range / 10f;
 
-                  paint.setTextSize(11f);
-                  paint.setTypeface(Typeface.DEFAULT_BOLD);
-                  paint.setColor(GREY);
+                  paint.setMaskFilter(null);
+                  paint.setStyle(Paint.Style.FILL);
 
                   if (horizontal) {
-                      canvas.drawText("-10", 2, 12, paint);
-                      canvas.drawText("+10", w - 23, 12, paint);
-                  } else {
-                      canvas.drawText("+10", 3, 13, paint);
-                      canvas.drawText("0", 3, center + 4, paint);
-                      canvas.drawText("-10", 3, h - 3, paint);
-                  }
+                      float cy = h * 0.35f;
 
-                  paint.setStrokeCap(Paint.Cap.BUTT);
-                  paint.setStrokeWidth(4f);
+                      paint.setColor(track);
+                      canvas.drawRoundRect(
+                              dp(12), cy - dp(8),
+                              w - dp(12), cy + dp(8),
+                              dp(8), dp(8), paint);
 
-                  for (int i = 0; i < 20; i++) {
-                      int grooveLevel = i < 10 ? 10 - i : -(i - 9);
+                      paint.setColor(grey);
+                      paint.setStrokeWidth(dp(1.5f));
 
-                      boolean active = level > 0
-                              ? grooveLevel > 0 && grooveLevel <= level
-                              : level < 0 && grooveLevel < 0
-                              && grooveLevel >= level;
+                      for (int n = 1; n <= 10; n++) {
+                          float x = center - n * step;
+                          float y = cy + dp(12);
 
-                      paint.setColor(active ? BLUE : GREY);
-
-                      if (horizontal) {
-                          float x = (i + 0.5f) * w / 20f;
-                          canvas.drawLine(x - 5, center, x + 5, center, paint);
-                      } else {
-                          float y = (i + 0.5f) * h / 20f;
-                          canvas.drawLine(w / 2f - 5, y, w / 2f + 5, y, paint);
+                          boolean active = level < 0 && n <= -level;
+                          if (active) {
+                              drawGlowLine(canvas,
+                                      x, y, x, y + dp(15));
+                          } else {
+                              canvas.drawLine(
+                                      x, y, x, y + dp(15), paint);
+                          }
                       }
-                  }
 
-                  // Fixed zero marker
-                  paint.setColor(GREY);
-                  paint.setStrokeWidth(5f);
+                      for (int n = 1; n <= 10; n++) {
+                          float x = center + n * step;
+                          float y = cy + dp(12);
 
-                  if (horizontal) {
-                      canvas.drawLine(center, h / 2f - 9,
-                              center, h / 2f + 9, paint);
+                          boolean active = level > 0 && n <= level;
+                          if (active) {
+                              drawGlowLine(canvas,
+                                      x, y, x, y + dp(15));
+                          } else {
+                              canvas.drawLine(
+                                      x, y, x, y + dp(15), paint);
+                          }
+                      }
+
+                      float markerX = center + level * step;
+                      drawHandle(canvas, markerX, cy, false);
+
                   } else {
-                      canvas.drawLine(w / 2f - 10, center,
-                              w / 2f + 10, center, paint);
+                      float cx = w * 0.50f;
+
+                      paint.setColor(track);
+                      canvas.drawRoundRect(
+                              cx - dp(8), dp(10),
+                              cx + dp(8), h - dp(10),
+                              dp(8), dp(8), paint);
+
+                      paint.setColor(grey);
+                      paint.setStrokeWidth(dp(1.5f));
+
+                      for (int n = 1; n <= 10; n++) {
+                          float y = center - n * step;
+
+                          boolean active = level > 0 && n <= level;
+                          if (active) {
+                              drawGlowLine(canvas,
+                                      cx - dp(24), y,
+                                      cx + dp(24), y);
+                          } else {
+                              canvas.drawLine(
+                                      cx - dp(24), y,
+                                      cx + dp(24), y, paint);
+                          }
+                      }
+
+                      for (int n = 1; n <= 10; n++) {
+                          float y = center + n * step;
+
+                          boolean active = level < 0 && n <= -level;
+                          if (active) {
+                              drawGlowLine(canvas,
+                                      cx - dp(24), y,
+                                      cx + dp(24), y);
+                          } else {
+                              canvas.drawLine(
+                                      cx - dp(24), y,
+                                      cx + dp(24), y, paint);
+                          }
+                      }
+
+                      float markerY = center - level * step;
+                      drawHandle(canvas, cx, markerY, true);
                   }
 
-                  // Moving marker
-                  paint.setColor(GOLD);
-                  paint.setStrokeWidth(9f);
-
-                  if (horizontal) {
-                      float x = center + level * spacing;
-                      canvas.drawLine(x, h / 2f - 12,
-                              x, h / 2f + 12, paint);
-                  } else {
-                      float y = center - level * spacing;
-                      canvas.drawLine(w / 2f - 13, y,
-                              w / 2f + 13, y, paint);
-                  }
+                  paint.setMaskFilter(null);
               }
 
               @Override
               public boolean onTouchEvent(MotionEvent event) {
-                  if (event.getAction() == MotionEvent.ACTION_DOWN
-                          || event.getAction() == MotionEvent.ACTION_MOVE
-                          || event.getAction() == MotionEvent.ACTION_UP) {
+                  int action = event.getAction();
+
+                  if (action == MotionEvent.ACTION_DOWN
+                          || action == MotionEvent.ACTION_MOVE
+                          || action == MotionEvent.ACTION_UP) {
 
                       if (getWidth() > getHeight()) {
+                          float center = getWidth() / 2f;
+                          float range = getWidth() * 0.40f;
+
                           level = Math.round(
-                                  (event.getX() - getWidth() / 2f)
-                                  * 20f / getWidth());
+                                  (event.getX() - center)
+                                  * 10f / range);
                       } else {
+                          float center = getHeight() / 2f;
+                          float range = getHeight() * 0.40f;
+
                           level = Math.round(
-                                  (getHeight() / 2f - event.getY())
-                                  * 20f / getHeight());
+                                  (center - event.getY())
+                                  * 10f / range);
                       }
 
-                      level = Math.max(-10, Math.min(10, level));
+                      level = Math.max(-10,
+                              Math.min(10, level));
+
                       invalidate();
                       return true;
                   }
